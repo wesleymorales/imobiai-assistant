@@ -5,6 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency, getTemperaturaLabel, timeAgo } from "@/lib/mock-data";
+import NewEventoDialog from "@/components/NewEventoDialog";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency, getTemperaturaLabel, timeAgo } from "@/lib/mock-data";
 
 function BriefingCard({ userName, leadsCount, eventosCount, metaProgress }: { userName: string; leadsCount: number; eventosCount: number; metaProgress: number }) {
   return (
