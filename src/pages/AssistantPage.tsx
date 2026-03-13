@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Mic, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { mockUser } from "@/lib/mock-data";
+import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/hooks/useAuth";
+import { streamChat } from "@/lib/ai-stream";
+import { toast } from "sonner";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -32,36 +35,56 @@ function TypingIndicator() {
 }
 
 export default function AssistantPage() {
+  const { user, session } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isStreaming]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isStreaming) return;
     const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
-    setIsTyping(true);
+    setIsStreaming(true);
 
-    // Simulated AI response
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: getSimulatedResponse(text),
+    let assistantContent = "";
+
+    const updateAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant") {
+          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
+        }
+        return [...prev, { role: "assistant", content: assistantContent }];
+      });
+    };
+
+    try {
+      await streamChat({
+        messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+        accessToken: session?.access_token || "",
+        onDelta: updateAssistant,
+        onDone: () => setIsStreaming(false),
+        onError: (msg) => {
+          toast.error(msg);
+          setIsStreaming(false);
         },
-      ]);
-    }, 1500);
+      });
+    } catch {
+      toast.error("Erro ao conectar com o assistente");
+      setIsStreaming(false);
+    }
   };
 
   const isEmpty = messages.length === 0;
+  const userName = user?.user_metadata?.nome || "Corretor";
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
@@ -77,10 +100,7 @@ export default function AssistantPage() {
           </div>
         </div>
         <button
-          onClick={() => {
-            // Placeholder for Whisper
-            alert("Reconhecimento de voz em breve!");
-          }}
+          onClick={() => toast.info("Reconhecimento de voz em breve!")}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary"
         >
           <Mic size={18} className="text-muted-foreground" />
@@ -89,13 +109,13 @@ export default function AssistantPage() {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {isEmpty ? (
+        {isEmpty && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full gradient-coral mb-4">
               <Bot size={28} className="text-primary-foreground" />
             </div>
             <h2 className="text-lg font-bold text-foreground mb-2">
-              Olá, {mockUser.nome}! 👋
+              Olá, {userName}! 👋
             </h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
               Sou o ImobiAI, seu assistente para o mercado imobiliário. Como posso te ajudar hoje?
@@ -133,13 +153,19 @@ export default function AssistantPage() {
                       : "bg-secondary text-foreground rounded-bl-md"
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         )}
-        {isTyping && <TypingIndicator />}
+        {isStreaming && messages[messages.length - 1]?.role !== "assistant" && <TypingIndicator />}
       </div>
 
       {/* Input */}
@@ -155,7 +181,7 @@ export default function AssistantPage() {
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isStreaming}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full gradient-coral disabled:opacity-40 transition-opacity"
           >
             <Send size={18} className="text-primary-foreground" />
@@ -164,17 +190,4 @@ export default function AssistantPage() {
       </div>
     </div>
   );
-}
-
-function getSimulatedResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("script") || lower.includes("lead"))
-    return "Claro! Para gerar um script personalizado, me diga: qual lead você quer abordar e por qual canal (WhatsApp, ligação ou e-mail)? Vou criar um texto sob medida com base no perfil do cliente.";
-  if (lower.includes("funil") || lower.includes("conversão"))
-    return "Seu funil atual: 4 leads ativos, 1 quente (João Silva), 2 mornos e 1 frio. Taxa de conversão estimada: 25%. Recomendo focar no João — ele está pronto para fechar. Quer que eu gere um script de fechamento?";
-  if (lower.includes("pitch") || lower.includes("visita"))
-    return "Para a visita de hoje com João Silva no Itaim, destaque: vaga dupla (ele tem cachorro grande e precisa de espaço), andar alto (preferência da esposa), e portaria 24h. Comece perguntando sobre o pet — cria conexão!";
-  if (lower.includes("resumo") || lower.includes("dia"))
-    return "📋 Seu dia: 2 compromissos — visita com João Silva (10h, Ap Itaim) e reunião de proposta com Maria Costa (14h). Meta do mês em 70%. 3 leads sem contato há mais de 3 dias. Prioridade: fechar com João hoje!";
-  return "Entendi! Posso te ajudar com scripts de abordagem, análise de leads, sugestão de imóveis e muito mais. Me diga mais detalhes sobre o que precisa!";
 }
