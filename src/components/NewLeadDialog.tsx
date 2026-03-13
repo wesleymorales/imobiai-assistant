@@ -30,6 +30,7 @@ export default function NewLeadDialog() {
       nome: form.nome.trim(),
       telefone: form.telefone || null,
       email: form.email || null,
+      cpf: form.cpf || null,
       orcamento: form.orcamento ? Number(form.orcamento) : null,
       bairros: form.bairros ? form.bairros.split(",").map((b) => b.trim()) : [],
       quartos_min: form.quartos_min ? Number(form.quartos_min) : null,
@@ -39,7 +40,7 @@ export default function NewLeadDialog() {
       urgencia: form.urgencia || null,
       observacoes: form.observacoes || null,
       ultima_interacao: new Date().toISOString(),
-    });
+    } as any);
     setLoading(false);
     if (error) return toast.error("Erro ao salvar lead");
     toast.success("Lead cadastrado!");
