@@ -68,6 +68,7 @@ export default function NewLeadDialog() {
           <input value={form.nome} onChange={(e) => update("nome", e.target.value)} placeholder="Nome *" className={inputCls} />
           <input value={form.telefone} onChange={(e) => update("telefone", e.target.value)} placeholder="Telefone / WhatsApp" className={inputCls} />
           <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="E-mail" className={inputCls} />
+          <input value={form.cpf} onChange={(e) => update("cpf", e.target.value)} placeholder="CPF" className={inputCls} />
           <input type="number" value={form.orcamento} onChange={(e) => update("orcamento", e.target.value)} placeholder="Orçamento (R$)" className={inputCls} />
           <input value={form.bairros} onChange={(e) => update("bairros", e.target.value)} placeholder="Bairros (separar por vírgula)" className={inputCls} />
           <input type="number" value={form.quartos_min} onChange={(e) => update("quartos_min", e.target.value)} placeholder="Quartos mínimos" className={inputCls} />
