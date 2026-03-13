@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/mock-data";
 import NewImovelDialog from "@/components/NewImovelDialog";
+import EditImovelDialog from "@/components/EditImovelDialog";
 
 const filters = [
   { label: "Todos", value: "todos" },
@@ -24,6 +25,7 @@ export default function ImoveisPage() {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState("todos");
   const [search, setSearch] = useState("");
+  const [editImovel, setEditImovel] = useState<any>(null);
 
   const { data: allImoveis = [], isLoading } = useQuery({
     queryKey: ["imoveis", user?.id],
@@ -84,16 +86,22 @@ export default function ImoveisPage() {
         <div className="grid grid-cols-2 gap-3">
           {filtered.map((imovel, i) => {
             const badge = statusBadge[imovel.status ?? "disponivel"] || statusBadge.disponivel;
+            const foto = imovel.fotos_urls?.[0];
             return (
               <motion.div
                 key={imovel.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="rounded-2xl bg-card card-shadow border border-border overflow-hidden active:scale-[0.98] transition-transform"
+                onClick={() => setEditImovel(imovel)}
+                className="rounded-2xl bg-card card-shadow border border-border overflow-hidden active:scale-[0.98] transition-transform cursor-pointer"
               >
-                <div className="relative h-28 gradient-coral flex items-center justify-center">
-                  <span className="text-primary-foreground/60 text-3xl">🏠</span>
+                <div className="relative h-28 bg-secondary flex items-center justify-center overflow-hidden">
+                  {foto ? (
+                    <img src={foto} alt={imovel.titulo} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-muted-foreground/60 text-3xl">🏠</span>
+                  )}
                   <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
                     {badge.label}
                   </span>
@@ -114,6 +122,8 @@ export default function ImoveisPage() {
           })}
         </div>
       )}
+
+      <EditImovelDialog imovel={editImovel} open={!!editImovel} onOpenChange={(v) => !v && setEditImovel(null)} />
     </div>
   );
 }

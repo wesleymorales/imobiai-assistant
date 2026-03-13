@@ -1,24 +1,17 @@
 import { useState } from "react";
-import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info, Mic, Volume2 } from "lucide-react";
+import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import EditProfileDialog from "@/components/EditProfileDialog";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 
-type SettingItem = {
-  icon: React.ElementType;
-  label: string;
-  subtitle?: string;
-  trailing?: "chevron" | "badge-green" | "badge-gray" | "badge-soon" | "toggle";
-  action?: string;
-};
-
 export default function ConfigPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
@@ -31,6 +24,15 @@ export default function ConfigPage() {
     enabled: !!user?.id,
   });
 
+  const toggleNotif = async (field: "notif_visitas" | "notif_leads_inativos" | "notif_resumo_diario") => {
+    if (!profile) return;
+    const newVal = !profile[field];
+    const { error } = await supabase.from("profiles").update({ [field]: newVal }).eq("id", user!.id);
+    if (error) return toast.error("Erro ao atualizar notificação");
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    toast.success(newVal ? "Notificação ativada" : "Notificação desativada");
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
@@ -39,40 +41,50 @@ export default function ConfigPage() {
   const handleAction = (action?: string) => {
     if (action === "edit-profile") setEditProfileOpen(true);
     if (action === "change-password") setChangePasswordOpen(true);
-    if (action === "google-calendar") toast.info("Integração com Google Agenda em breve!");
-    if (action === "whatsapp") toast.info("Integração com WhatsApp em breve!");
+    if (action === "google-calendar") toast.info("Integração com Google Agenda em breve! Será necessário configurar credenciais OAuth.");
+    if (action === "whatsapp") toast.info("Integração com WhatsApp em breve! Será necessário escanear QR Code.");
   };
 
   const userName = profile?.nome || user?.user_metadata?.nome || "Corretor";
   const userCity = profile?.cidade || "Sem cidade";
 
-  const sections = [
+  type SettingItem = {
+    icon: React.ElementType;
+    label: string;
+    subtitle?: string;
+    trailing?: "chevron" | "badge-green" | "badge-gray" | "badge-soon" | "toggle";
+    action?: string;
+    toggleField?: "notif_visitas" | "notif_leads_inativos" | "notif_resumo_diario";
+    toggleValue?: boolean;
+  };
+
+  const sections: { title: string; items: SettingItem[] }[] = [
     {
       title: "Meu Perfil",
       items: [
-        { icon: User, label: "Editar informações", trailing: "chevron" as const, action: "edit-profile" },
-        { icon: Lock, label: "Alterar senha", trailing: "chevron" as const, action: "change-password" },
+        { icon: User, label: "Editar informações", trailing: "chevron", action: "edit-profile" },
+        { icon: Lock, label: "Alterar senha", trailing: "chevron", action: "change-password" },
       ],
     },
     {
       title: "Integrações",
       items: [
-        { icon: Calendar, label: "Google Agenda", subtitle: "Sincronize suas visitas", trailing: "badge-gray" as const, action: "google-calendar" },
-        { icon: MessageCircle, label: "WhatsApp", subtitle: "Envie scripts pelo WhatsApp", trailing: "badge-gray" as const, action: "whatsapp" },
+        { icon: Calendar, label: "Google Agenda", subtitle: "Sincronize suas visitas", trailing: profile?.google_calendar_connected ? "badge-green" : "badge-gray", action: "google-calendar" },
+        { icon: MessageCircle, label: "WhatsApp", subtitle: "Envie scripts pelo WhatsApp", trailing: profile?.whatsapp_connected ? "badge-green" : "badge-gray", action: "whatsapp" },
       ],
     },
     {
       title: "Notificações",
       items: [
-        { icon: Bell, label: "Lembretes de visita", trailing: "toggle" as const },
-        { icon: BellOff, label: "Leads sem contato (3+ dias)", trailing: "toggle" as const },
-        { icon: Clock, label: "Resumo diário às 7h30", trailing: "toggle" as const },
+        { icon: Bell, label: "Lembretes de visita", trailing: "toggle", toggleField: "notif_visitas", toggleValue: profile?.notif_visitas ?? true },
+        { icon: BellOff, label: "Leads sem contato (3+ dias)", trailing: "toggle", toggleField: "notif_leads_inativos", toggleValue: profile?.notif_leads_inativos ?? true },
+        { icon: Clock, label: "Resumo diário às 7h30", trailing: "toggle", toggleField: "notif_resumo_diario", toggleValue: profile?.notif_resumo_diario ?? true },
       ],
     },
     {
       title: "Sobre",
       items: [
-        { icon: Info, label: "Versão 1.0.0", trailing: "chevron" as const },
+        { icon: Info, label: "Versão 1.0.0", trailing: "chevron" },
       ],
     },
   ];
@@ -105,7 +117,13 @@ export default function ConfigPage() {
               {section.items.map((item) => (
                 <div
                   key={item.label}
-                  onClick={() => handleAction(item.action)}
+                  onClick={() => {
+                    if (item.trailing === "toggle" && item.toggleField) {
+                      toggleNotif(item.toggleField);
+                    } else {
+                      handleAction(item.action);
+                    }
+                  }}
                   className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/50 transition-colors cursor-pointer"
                 >
                   <item.icon size={18} className="text-muted-foreground shrink-0" />
@@ -122,12 +140,9 @@ export default function ConfigPage() {
                   {item.trailing === "badge-gray" && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">Conectar</span>
                   )}
-                  {item.trailing === "badge-soon" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-coral-light text-primary">Em breve</span>
-                  )}
                   {item.trailing === "toggle" && (
-                    <div className="h-6 w-10 rounded-full bg-primary relative cursor-pointer">
-                      <div className="absolute right-0.5 top-0.5 h-5 w-5 rounded-full bg-primary-foreground shadow-sm" />
+                    <div className={`h-6 w-10 rounded-full relative cursor-pointer transition-colors ${item.toggleValue ? "bg-primary" : "bg-muted"}`}>
+                      <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-primary-foreground shadow-sm transition-all ${item.toggleValue ? "right-0.5" : "left-0.5"}`} />
                     </div>
                   )}
                 </div>
