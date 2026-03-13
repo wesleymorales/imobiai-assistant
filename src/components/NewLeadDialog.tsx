@@ -47,7 +47,7 @@ export default function NewLeadDialog() {
     queryClient.invalidateQueries({ queryKey: ["leads"] });
     queryClient.invalidateQueries({ queryKey: ["leads-home"] });
     queryClient.invalidateQueries({ queryKey: ["leads-count"] });
-    setForm({ nome: "", telefone: "", email: "", orcamento: "", bairros: "", quartos_min: "", temperatura: "50", tipo_imovel_preferido: "", perfil: "", urgencia: "", observacoes: "" });
+    setForm({ nome: "", telefone: "", email: "", cpf: "", orcamento: "", bairros: "", quartos_min: "", temperatura: "50", tipo_imovel_preferido: "", perfil: "", urgencia: "", observacoes: "" });
     setOpen(false);
   };
 
