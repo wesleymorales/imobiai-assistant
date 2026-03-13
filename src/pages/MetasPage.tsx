@@ -1,26 +1,45 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Target, TrendingUp, Users, Eye, FileText, CheckCircle, Pencil, Bot } from "lucide-react";
-import { mockUser, formatCurrency } from "@/lib/mock-data";
+import { Target, Users, Eye, FileText, CheckCircle, Pencil, Bot } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from "@/lib/mock-data";
+import { Link } from "react-router-dom";
 
 export default function MetasPage() {
-  const valorRealizado = 2100000;
-  const meta = mockUser.meta_mensal;
-  const progresso = Math.round((valorRealizado / meta) * 100);
-  const faltam = meta - valorRealizado;
+  const { user } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: leadsCount = 0 } = useQuery({
+    queryKey: ["leads-count", user?.id],
+    queryFn: async () => {
+      const { count } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("corretor_id", user!.id);
+      return count || 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  const meta = profile?.meta_mensal ?? 0;
 
   const metricas = [
-    { icon: Users, label: "Leads ativos", value: "4" },
-    { icon: Eye, label: "Visitas realizadas", value: "8" },
-    { icon: FileText, label: "Propostas enviadas", value: "3" },
-    { icon: CheckCircle, label: "Fechamentos", value: "1" },
+    { icon: Users, label: "Leads ativos", value: String(leadsCount) },
+    { icon: Eye, label: "Visitas realizadas", value: "0" },
+    { icon: FileText, label: "Propostas enviadas", value: "0" },
+    { icon: CheckCircle, label: "Fechamentos", value: "0" },
   ];
 
   return (
     <div className="px-4 pt-6">
       <h1 className="text-2xl font-bold text-foreground mb-6">Minhas Metas</h1>
 
-      {/* Meta Mensal Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -32,26 +51,28 @@ export default function MetasPage() {
             <Pencil size={14} className="text-muted-foreground" />
           </button>
         </div>
-        <p className="text-3xl font-bold text-foreground mb-1">
-          {formatCurrency(valorRealizado)}
-        </p>
-        <p className="text-sm text-muted-foreground mb-4">
-          de {formatCurrency(meta)}
-        </p>
-        <div className="h-3 rounded-full bg-secondary overflow-hidden mb-2">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progresso}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="h-full rounded-full gradient-coral"
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Faltam {formatCurrency(faltam)} 🎯
-        </p>
+        {meta > 0 ? (
+          <>
+            <p className="text-3xl font-bold text-foreground mb-1">{formatCurrency(0)}</p>
+            <p className="text-sm text-muted-foreground mb-4">de {formatCurrency(meta)}</p>
+            <div className="h-3 rounded-full bg-secondary overflow-hidden mb-2">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "0%" }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="h-full rounded-full gradient-coral"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">Faltam {formatCurrency(meta)} 🎯</p>
+          </>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-2">Configure sua meta mensal</p>
+            <Link to="/config" className="text-sm font-semibold text-primary">Ir para Configurações →</Link>
+          </div>
+        )}
       </motion.div>
 
-      {/* Metrics Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         {metricas.map((m, i) => (
           <motion.div
@@ -68,7 +89,6 @@ export default function MetasPage() {
         ))}
       </div>
 
-      {/* Calculator Card */}
       <div className="rounded-2xl bg-card p-5 card-shadow border border-border mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Target size={18} className="text-primary" />
@@ -82,8 +102,7 @@ export default function MetasPage() {
         </button>
       </div>
 
-      {/* AI Analysis */}
-      <div className="rounded-2xl bg-coral-light p-4 card-shadow mb-4">
+      <div className="rounded-2xl bg-coral-light p-4 card-shadow mb-8">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full gradient-coral">
             <Bot size={18} className="text-primary-foreground" />
@@ -91,27 +110,11 @@ export default function MetasPage() {
           <div>
             <p className="text-sm font-semibold text-foreground mb-1">Análise do Assistente</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Você está em 70% da meta — ritmo saudável! Foque em João Silva (quente) e Maria Costa (proposta pendente). 2 fechamentos esta semana te colocam no caminho certo. 💪
+              {leadsCount > 0
+                ? `Você tem ${leadsCount} lead${leadsCount !== 1 ? "s" : ""} cadastrado${leadsCount !== 1 ? "s" : ""}. Cadastre seus imóveis e comece a fechar negócios! 💪`
+                : "Comece cadastrando seus leads e imóveis para acompanhar sua performance. 🚀"}
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* History Chart Placeholder */}
-      <div className="rounded-2xl bg-card p-5 card-shadow border border-border mb-8">
-        <p className="text-base font-bold text-foreground mb-3">Histórico</p>
-        <div className="flex items-end gap-2 h-32">
-          {[60, 45, 80, 95, 70, 55].map((h, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t-lg gradient-coral"
-                style={{ height: `${h}%` }}
-              />
-              <span className="text-[10px] text-muted-foreground">
-                {["Out", "Nov", "Dez", "Jan", "Fev", "Mar"][i]}
-              </span>
-            </div>
-          ))}
         </div>
       </div>
     </div>
