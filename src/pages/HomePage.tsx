@@ -139,8 +139,6 @@ function ShortcutsSection() {
   );
 }
 
-import { Building2 } from "lucide-react";
-
 export default function HomePage() {
   return (
     <div className="px-4 pt-6">
