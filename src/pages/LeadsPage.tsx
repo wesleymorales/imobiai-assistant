@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Search, Plus, Clock } from "lucide-react";
+import { Search, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getTemperaturaLabel, formatCurrency, timeAgo } from "@/lib/mock-data";
 import NewLeadDialog from "@/components/NewLeadDialog";
+import EditLeadDialog from "@/components/EditLeadDialog";
 
 const filters = [
   { label: "Todos", value: "todos" },
@@ -18,6 +19,7 @@ export default function LeadsPage() {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState("todos");
   const [search, setSearch] = useState("");
+  const [editLead, setEditLead] = useState<any>(null);
 
   const { data: allLeads = [], isLoading } = useQuery({
     queryKey: ["leads", user?.id],
@@ -87,7 +89,8 @@ export default function LeadsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="rounded-2xl bg-card p-4 card-shadow border border-border active:scale-[0.98] transition-transform"
+                onClick={() => setEditLead(lead)}
+                className="rounded-2xl bg-card p-4 card-shadow border border-border active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <div className="flex items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-coral-light text-primary font-bold text-lg">
@@ -123,6 +126,8 @@ export default function LeadsPage() {
           })
         )}
       </div>
+
+      <EditLeadDialog lead={editLead} open={!!editLead} onOpenChange={(v) => !v && setEditLead(null)} />
     </div>
   );
 }

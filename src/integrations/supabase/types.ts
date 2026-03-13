@@ -210,6 +210,7 @@ export type Database = {
           bairros: string[] | null
           como_chegou: string | null
           corretor_id: string
+          cpf: string | null
           created_at: string | null
           email: string | null
           forma_pagamento: string | null
@@ -234,6 +235,7 @@ export type Database = {
           bairros?: string[] | null
           como_chegou?: string | null
           corretor_id: string
+          cpf?: string | null
           created_at?: string | null
           email?: string | null
           forma_pagamento?: string | null
@@ -258,6 +260,7 @@ export type Database = {
           bairros?: string[] | null
           como_chegou?: string | null
           corretor_id?: string
+          cpf?: string | null
           created_at?: string | null
           email?: string | null
           forma_pagamento?: string | null
