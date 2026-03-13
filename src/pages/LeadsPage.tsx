@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getTemperaturaLabel, formatCurrency, timeAgo } from "@/lib/mock-data";
+import NewLeadDialog from "@/components/NewLeadDialog";
 
 const filters = [
   { label: "Todos", value: "todos" },
@@ -40,9 +41,7 @@ export default function LeadsPage() {
     <div className="px-4 pt-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-foreground">Leads</h1>
-        <button className="flex h-10 w-10 items-center justify-center rounded-full gradient-coral shadow-lg shadow-primary/20">
-          <Plus size={20} className="text-primary-foreground" />
-        </button>
+        <NewLeadDialog />
       </div>
 
       <div className="relative mb-4">

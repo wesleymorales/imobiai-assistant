@@ -1,64 +1,26 @@
-import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info, Mic, Volume2, Bot } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info, Mic, Volume2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import EditProfileDialog from "@/components/EditProfileDialog";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 
 type SettingItem = {
   icon: React.ElementType;
   label: string;
   subtitle?: string;
   trailing?: "chevron" | "badge-green" | "badge-gray" | "badge-soon" | "toggle";
-  danger?: boolean;
+  action?: string;
 };
-
-type SettingSection = {
-  title: string;
-  items: SettingItem[];
-};
-
-const sections: SettingSection[] = [
-  {
-    title: "Meu Perfil",
-    items: [
-      { icon: User, label: "Editar informações", trailing: "chevron" },
-      { icon: Lock, label: "Alterar senha", trailing: "chevron" },
-    ],
-  },
-  {
-    title: "Integrações",
-    items: [
-      { icon: Calendar, label: "Google Agenda", subtitle: "Sincronize suas visitas", trailing: "badge-gray" },
-      { icon: MessageCircle, label: "WhatsApp", subtitle: "Envie scripts pelo WhatsApp", trailing: "badge-gray" },
-    ],
-  },
-  {
-    title: "Assistente IA",
-    items: [
-      { icon: Bot, label: "Provedor ativo", subtitle: "Configurado pela equipe ImobiAI", trailing: "chevron" },
-      { icon: Volume2, label: "Respostas em áudio", subtitle: "Integração com ElevenLabs", trailing: "badge-soon" },
-      { icon: Mic, label: "Reconhecimento de voz", subtitle: "Integração com Whisper", trailing: "badge-soon" },
-    ],
-  },
-  {
-    title: "Notificações",
-    items: [
-      { icon: Bell, label: "Lembretes de visita", trailing: "toggle" },
-      { icon: BellOff, label: "Leads sem contato (3+ dias)", trailing: "toggle" },
-      { icon: Clock, label: "Resumo diário às 7h30", trailing: "toggle" },
-    ],
-  },
-  {
-    title: "Sobre",
-    items: [
-      { icon: Info, label: "Versão 1.0.0", trailing: "chevron" },
-    ],
-  },
-];
 
 export default function ConfigPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -74,14 +36,55 @@ export default function ConfigPage() {
     navigate("/login");
   };
 
+  const handleAction = (action?: string) => {
+    if (action === "edit-profile") setEditProfileOpen(true);
+    if (action === "change-password") setChangePasswordOpen(true);
+    if (action === "google-calendar") toast.info("Integração com Google Agenda em breve!");
+    if (action === "whatsapp") toast.info("Integração com WhatsApp em breve!");
+  };
+
   const userName = profile?.nome || user?.user_metadata?.nome || "Corretor";
   const userCity = profile?.cidade || "Sem cidade";
+
+  const sections = [
+    {
+      title: "Meu Perfil",
+      items: [
+        { icon: User, label: "Editar informações", trailing: "chevron" as const, action: "edit-profile" },
+        { icon: Lock, label: "Alterar senha", trailing: "chevron" as const, action: "change-password" },
+      ],
+    },
+    {
+      title: "Integrações",
+      items: [
+        { icon: Calendar, label: "Google Agenda", subtitle: "Sincronize suas visitas", trailing: "badge-gray" as const, action: "google-calendar" },
+        { icon: MessageCircle, label: "WhatsApp", subtitle: "Envie scripts pelo WhatsApp", trailing: "badge-gray" as const, action: "whatsapp" },
+      ],
+    },
+    {
+      title: "Notificações",
+      items: [
+        { icon: Bell, label: "Lembretes de visita", trailing: "toggle" as const },
+        { icon: BellOff, label: "Leads sem contato (3+ dias)", trailing: "toggle" as const },
+        { icon: Clock, label: "Resumo diário às 7h30", trailing: "toggle" as const },
+      ],
+    },
+    {
+      title: "Sobre",
+      items: [
+        { icon: Info, label: "Versão 1.0.0", trailing: "chevron" as const },
+      ],
+    },
+  ];
 
   return (
     <div className="px-4 pt-6">
       <h1 className="text-2xl font-bold text-foreground mb-6">Configurações</h1>
 
-      <div className="flex items-center gap-4 rounded-2xl bg-card p-4 card-shadow border border-border mb-6">
+      <div
+        onClick={() => setEditProfileOpen(true)}
+        className="flex items-center gap-4 rounded-2xl bg-card p-4 card-shadow border border-border mb-6 cursor-pointer active:bg-secondary/50 transition-colors"
+      >
         <div className="flex h-14 w-14 items-center justify-center rounded-full gradient-coral text-primary-foreground font-bold text-xl">
           {userName.charAt(0)}
         </div>
@@ -102,7 +105,8 @@ export default function ConfigPage() {
               {section.items.map((item) => (
                 <div
                   key={item.label}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/50 transition-colors"
+                  onClick={() => handleAction(item.action)}
+                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/50 transition-colors cursor-pointer"
                 >
                   <item.icon size={18} className="text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -135,11 +139,14 @@ export default function ConfigPage() {
 
       <button
         onClick={handleLogout}
-        className="w-full mt-6 mb-8 rounded-2xl bg-red-50 py-4 text-sm font-bold text-red-500 active:bg-red-100 transition-colors"
+        className="w-full mt-6 mb-8 rounded-2xl bg-destructive/10 py-4 text-sm font-bold text-destructive active:bg-destructive/20 transition-colors"
       >
         <LogOut size={16} className="inline mr-2" />
         Sair
       </button>
+
+      <EditProfileDialog open={editProfileOpen} onOpenChange={setEditProfileOpen} />
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   );
 }
