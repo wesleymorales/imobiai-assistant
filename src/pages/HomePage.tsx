@@ -1,4 +1,4 @@
-import { BarChart3, Bot, Calendar, Clock, Plus, Sparkles, User, ChevronRight } from "lucide-react";
+import { BarChart3, Bot, Building2, Calendar, Clock, Plus, Sparkles, User, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { mockUser, mockLeads, mockEventos, getTemperaturaLabel, formatCurrency, timeAgo } from "@/lib/mock-data";
