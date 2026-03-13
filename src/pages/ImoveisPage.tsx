@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Search, Plus, Bed, Car, Maximize } from "lucide-react";
+import { Search, Bed, Car, Maximize } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/mock-data";
+import NewImovelDialog from "@/components/NewImovelDialog";
 
 const filters = [
   { label: "Todos", value: "todos" },
@@ -43,9 +44,7 @@ export default function ImoveisPage() {
     <div className="px-4 pt-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-foreground">Imóveis</h1>
-        <button className="flex h-10 w-10 items-center justify-center rounded-full gradient-coral shadow-lg shadow-primary/20">
-          <Plus size={20} className="text-primary-foreground" />
-        </button>
+        <NewImovelDialog />
       </div>
 
       <div className="relative mb-4">
