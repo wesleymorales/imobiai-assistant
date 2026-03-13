@@ -17,6 +17,25 @@ export default function NewEventoDialog({ trigger }: { trigger?: React.ReactNode
 
   const update = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
+  const syncToGoogleCalendar = async (eventId: string) => {
+    try {
+      const { data: profile } = await supabase.from("profiles").select("google_calendar_connected").eq("id", user!.id).single();
+      if (!profile?.google_calendar_connected) return;
+
+      const { error } = await supabase.functions.invoke("google-calendar-sync", {
+        body: { event_id: eventId },
+      });
+      if (error) {
+        console.error("Sync error:", error);
+        toast.info("Evento criado, mas não sincronizado com Google Agenda");
+      } else {
+        toast.success("Sincronizado com Google Agenda!");
+      }
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titulo.trim() || !form.data_inicio || !form.hora_inicio) return toast.error("Preencha título, data e hora");
@@ -24,18 +43,25 @@ export default function NewEventoDialog({ trigger }: { trigger?: React.ReactNode
     const dataInicio = new Date(`${form.data_inicio}T${form.hora_inicio}`).toISOString();
     const dataFim = form.hora_fim ? new Date(`${form.data_inicio}T${form.hora_fim}`).toISOString() : null;
 
-    const { error } = await supabase.from("eventos_agenda").insert({
+    const { data: inserted, error } = await supabase.from("eventos_agenda").insert({
       corretor_id: user!.id,
       titulo: form.titulo.trim(),
       tipo: form.tipo,
       data_inicio: dataInicio,
       data_fim: dataFim,
       notas: form.notas || null,
-    });
+    }).select("id").single();
+
     setLoading(false);
     if (error) return toast.error("Erro ao salvar evento");
     toast.success("Evento criado!");
     queryClient.invalidateQueries({ queryKey: ["eventos-home"] });
+
+    // Sync to Google Calendar in background
+    if (inserted?.id) {
+      syncToGoogleCalendar(inserted.id);
+    }
+
     setForm({ titulo: "", tipo: "visita", data_inicio: "", hora_inicio: "", hora_fim: "", notas: "" });
     setOpen(false);
   };

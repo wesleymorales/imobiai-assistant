@@ -314,7 +314,10 @@ export type Database = {
           created_at: string | null
           email: string | null
           foco: string[] | null
+          google_access_token: string | null
           google_calendar_connected: boolean | null
+          google_refresh_token: string | null
+          google_token_expires_at: string | null
           id: string
           meta_mensal: number | null
           nome: string | null
@@ -333,7 +336,10 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           foco?: string[] | null
+          google_access_token?: string | null
           google_calendar_connected?: boolean | null
+          google_refresh_token?: string | null
+          google_token_expires_at?: string | null
           id: string
           meta_mensal?: number | null
           nome?: string | null
@@ -352,7 +358,10 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           foco?: string[] | null
+          google_access_token?: string | null
           google_calendar_connected?: boolean | null
+          google_refresh_token?: string | null
+          google_token_expires_at?: string | null
           id?: string
           meta_mensal?: number | null
           nome?: string | null

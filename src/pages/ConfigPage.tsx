@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import EditProfileDialog from "@/components/EditProfileDialog";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
@@ -14,6 +14,8 @@ export default function ConfigPage() {
   const queryClient = useQueryClient();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -24,6 +26,15 @@ export default function ConfigPage() {
     enabled: !!user?.id,
   });
 
+  // Handle Google Calendar callback
+  useEffect(() => {
+    if (searchParams.get("google") === "connected") {
+      toast.success("Google Agenda conectado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, queryClient, setSearchParams]);
+
   const toggleNotif = async (field: "notif_visitas" | "notif_leads_inativos" | "notif_resumo_diario") => {
     if (!profile) return;
     const newVal = !profile[field];
@@ -31,6 +42,35 @@ export default function ConfigPage() {
     if (error) return toast.error("Erro ao atualizar notificação");
     queryClient.invalidateQueries({ queryKey: ["profile"] });
     toast.success(newVal ? "Notificação ativada" : "Notificação desativada");
+  };
+
+  const handleGoogleCalendar = async () => {
+    if (profile?.google_calendar_connected) {
+      // Disconnect
+      const { error } = await supabase.from("profiles").update({
+        google_calendar_connected: false,
+        google_access_token: null,
+        google_refresh_token: null,
+        google_token_expires_at: null,
+      } as any).eq("id", user!.id);
+      if (error) return toast.error("Erro ao desconectar");
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Google Agenda desconectado");
+      return;
+    }
+
+    setConnectingGoogle(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("google-calendar-auth");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao iniciar conexão com Google");
+      setConnectingGoogle(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -41,7 +81,7 @@ export default function ConfigPage() {
   const handleAction = (action?: string) => {
     if (action === "edit-profile") setEditProfileOpen(true);
     if (action === "change-password") setChangePasswordOpen(true);
-    if (action === "google-calendar") toast.info("Integração com Google Agenda em breve! Será necessário configurar credenciais OAuth.");
+    if (action === "google-calendar") handleGoogleCalendar();
     if (action === "whatsapp") toast.info("Integração com WhatsApp em breve! Será necessário escanear QR Code.");
   };
 
@@ -69,7 +109,13 @@ export default function ConfigPage() {
     {
       title: "Integrações",
       items: [
-        { icon: Calendar, label: "Google Agenda", subtitle: "Sincronize suas visitas", trailing: profile?.google_calendar_connected ? "badge-green" : "badge-gray", action: "google-calendar" },
+        {
+          icon: Calendar,
+          label: "Google Agenda",
+          subtitle: profile?.google_calendar_connected ? "Clique para desconectar" : "Sincronize suas visitas",
+          trailing: profile?.google_calendar_connected ? "badge-green" : "badge-gray",
+          action: "google-calendar",
+        },
         { icon: MessageCircle, label: "WhatsApp", subtitle: "Envie scripts pelo WhatsApp", trailing: profile?.whatsapp_connected ? "badge-green" : "badge-gray", action: "whatsapp" },
       ],
     },
@@ -138,7 +184,11 @@ export default function ConfigPage() {
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Conectado</span>
                   )}
                   {item.trailing === "badge-gray" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">Conectar</span>
+                    item.action === "google-calendar" && connectingGoogle ? (
+                      <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">Conectar</span>
+                    )
                   )}
                   {item.trailing === "toggle" && (
                     <div className={`h-6 w-10 rounded-full relative cursor-pointer transition-colors ${item.toggleValue ? "bg-primary" : "bg-muted"}`}>
