@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro" element={<CadastroPage />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+
               <Route path="/" element={<HomePage />} />
               <Route path="/leads" element={<LeadsPage />} />
               <Route path="/assistente" element={<AssistantPage />} />
