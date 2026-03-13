@@ -1,0 +1,9 @@
+{
+  "name": "ImobiAI",
+  "short_name": "ImobiAI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF5A5F",
+  "description": "Assistente IA para corretores de imóveis"
+}
