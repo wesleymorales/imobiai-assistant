@@ -62,10 +62,7 @@ function AgendaSection({ eventos }: { eventos: any[] }) {
             <p className="text-sm text-muted-foreground">Nenhum evento hoje</p>
           </div>
         )}
-        <button className="min-w-[120px] rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-          <Plus size={20} />
-          <span className="text-xs font-medium">Novo evento</span>
-        </button>
+        <NewEventoDialog />
       </div>
     </div>
   );
