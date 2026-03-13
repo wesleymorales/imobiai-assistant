@@ -1,5 +1,8 @@
 import { ChevronRight, LogOut, User, Lock, Calendar, MessageCircle, Bell, BellOff, Clock, Info, Mic, Volume2, Bot } from "lucide-react";
-import { mockUser } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 type SettingItem = {
   icon: React.ElementType;
@@ -54,23 +57,41 @@ const sections: SettingSection[] = [
 ];
 
 export default function ConfigPage() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  const userName = profile?.nome || user?.user_metadata?.nome || "Corretor";
+  const userCity = profile?.cidade || "Sem cidade";
+
   return (
     <div className="px-4 pt-6">
       <h1 className="text-2xl font-bold text-foreground mb-6">Configurações</h1>
 
-      {/* Profile Card */}
       <div className="flex items-center gap-4 rounded-2xl bg-card p-4 card-shadow border border-border mb-6">
         <div className="flex h-14 w-14 items-center justify-center rounded-full gradient-coral text-primary-foreground font-bold text-xl">
-          {mockUser.nome.charAt(0)}
+          {userName.charAt(0)}
         </div>
         <div>
-          <p className="text-base font-bold text-foreground">{mockUser.nome}</p>
-          <p className="text-sm text-muted-foreground">{mockUser.cidade}</p>
+          <p className="text-base font-bold text-foreground">{userName}</p>
+          <p className="text-sm text-muted-foreground">{userCity}</p>
         </div>
         <ChevronRight size={20} className="ml-auto text-muted-foreground" />
       </div>
 
-      {/* Sections */}
       <div className="space-y-6">
         {sections.map((section) => (
           <div key={section.title}>
@@ -112,8 +133,10 @@ export default function ConfigPage() {
         ))}
       </div>
 
-      {/* Logout */}
-      <button className="w-full mt-6 mb-8 rounded-2xl bg-red-50 py-4 text-sm font-bold text-red-500 active:bg-red-100 transition-colors">
+      <button
+        onClick={handleLogout}
+        className="w-full mt-6 mb-8 rounded-2xl bg-red-50 py-4 text-sm font-bold text-red-500 active:bg-red-100 transition-colors"
+      >
         <LogOut size={16} className="inline mr-2" />
         Sair
       </button>
