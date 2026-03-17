@@ -163,7 +163,7 @@ export default function AssistantPage() {
 
     const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition: SpeechRecognition = new SpeechRecognitionAPI();
+    const recognition: any = new SpeechRecognitionAPI();
     recognition.lang = "pt-BR";
     recognition.continuous = false;
     recognition.interimResults = false;
