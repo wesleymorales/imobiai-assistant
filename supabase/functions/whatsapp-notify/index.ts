@@ -7,74 +7,76 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Supported notification types and their Meta-approved template names
-type TemplateType =
-  | "lembrete_visita"
-  | "lead_inativo"
-  | "resumo_diario"
-  | "novo_lead";
-
-const TEMPLATE_NAMES: Record<TemplateType, string> = {
-  lembrete_visita: "imobiai_lembrete_visita",
-  lead_inativo: "imobiai_lead_inativo",
-  resumo_diario: "imobiai_resumo_diario",
-  novo_lead: "imobiai_novo_lead",
-};
-
 interface NotifyPayload {
-  to: string; // phone number with country code, e.g. "5511999999999"
-  template: TemplateType;
-  params: string[]; // template body parameters in order
+  to: string;
+  message: string;
+  // Legacy template support (optional)
+  template?: string;
+  params?: string[];
 }
 
-async function sendWhatsAppMessage(
+async function sendZAPIMessage(
   to: string,
-  templateName: string,
-  params: string[]
+  message: string
 ): Promise<{ success: boolean; message_id?: string; error?: string }> {
-  const token = Deno.env.get("WHATSAPP_TOKEN");
-  const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+  const instanceId = Deno.env.get("ZAPI_INSTANCE_ID");
+  const token = Deno.env.get("ZAPI_TOKEN");
+  const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
 
-  if (!token || !phoneNumberId) {
-    return { success: false, error: "WhatsApp credentials not configured" };
+  if (!instanceId || !token) {
+    return { success: false, error: "Z-API credentials not configured" };
   }
 
-  const body = {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: "pt_BR" },
-      components: [
-        {
-          type: "body",
-          parameters: params.map((text) => ({ type: "text", text })),
-        },
-      ],
-    },
-  };
+  // Normalize phone: ensure country code, digits only
+  let phone = to.replace(/\D/g, "");
+  if (!phone.startsWith("55")) {
+    phone = "55" + phone;
+  }
 
-  const res = await fetch(
-    `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }
-  );
+  const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (clientToken) {
+    headers["Client-Token"] = clientToken;
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      phone,
+      message,
+    }),
+  });
 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error("WhatsApp API error:", data);
-    return { success: false, error: data?.error?.message || "WhatsApp API error" };
+    console.error("Z-API error:", data);
+    return { success: false, error: data?.error || data?.message || "Z-API error" };
   }
 
-  return { success: true, message_id: data?.messages?.[0]?.id };
+  return { success: true, message_id: data?.messageId || data?.id };
+}
+
+// Build message from template type + params (backward compat)
+function buildTemplateMessage(template: string, params: string[]): string {
+  switch (template) {
+    case "lembrete_visita":
+      return `📅 *Lembrete de Visita*\n\nVocê tem uma visita agendada às *${params[0]}*:\n${params[1]}\n\nBoa visita! 🏠`;
+    case "lead_inativo":
+      return `⚠️ *Lead sem contato*\n\nO lead *${params[0]}* está sem interação há ${params[1]} dias.\n\nQue tal retomar o contato? 📞`;
+    case "resumo_diario":
+      return `☀️ *Bom dia! Seu resumo diário:*\n\n${params[0]}`;
+    case "novo_lead":
+      return `🆕 *Novo Lead Cadastrado*\n\nNome: *${params[0]}*\nTemperatura: ${params[1]}\n\nAcesse o app para mais detalhes!`;
+    case "teste":
+      return `✅ *Teste ImobiAI*\n\nSua integração com WhatsApp está funcionando! 🎉\n\nVocê receberá alertas de leads, visitas e resumo diário aqui.`;
+    default:
+      return params.join(" ");
+  }
 }
 
 serve(async (req) => {
@@ -90,7 +92,6 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Validate user is authenticated
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsErr } =
       await supabase.auth.getClaims(token);
@@ -102,27 +103,28 @@ serve(async (req) => {
     }
 
     const payload: NotifyPayload = await req.json();
-    const { to, template, params } = payload;
+    const { to, message, template, params } = payload;
 
-    if (!to || !template || !params) {
+    if (!to) {
       return new Response(
-        JSON.stringify({ error: "Parâmetros obrigatórios: to, template, params" }),
+        JSON.stringify({ error: "Parâmetro obrigatório: to" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const templateName = TEMPLATE_NAMES[template];
-    if (!templateName) {
+    // Build final message: direct message or from template
+    let finalMessage = message;
+    if (!finalMessage && template && params) {
+      finalMessage = buildTemplateMessage(template, params);
+    }
+    if (!finalMessage) {
       return new Response(
-        JSON.stringify({ error: `Template desconhecido: ${template}` }),
+        JSON.stringify({ error: "Informe 'message' ou 'template' + 'params'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Normalize phone number (remove non-digits, ensure starts with country code)
-    const normalized = to.replace(/\D/g, "");
-
-    const result = await sendWhatsAppMessage(normalized, templateName, params);
+    const result = await sendZAPIMessage(to, finalMessage);
 
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 500,
