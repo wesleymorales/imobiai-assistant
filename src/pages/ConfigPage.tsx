@@ -21,6 +21,7 @@ function WhatsAppConfigSheet({
 }: {open: boolean;onClose: () => void;currentNumber: string;onSave: (number: string) => Promise<void>;}) {
   const [number, setNumber] = useState(currentNumber);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     setNumber(currentNumber);
