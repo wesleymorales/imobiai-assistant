@@ -21,6 +21,7 @@ function WhatsAppConfigSheet({
 }: {open: boolean;onClose: () => void;currentNumber: string;onSave: (number: string) => Promise<void>;}) {
   const [number, setNumber] = useState(currentNumber);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     setNumber(currentNumber);
@@ -85,19 +86,45 @@ function WhatsAppConfigSheet({
           disabled={saving}
           className="w-full rounded-2xl bg-green-500 py-3.5 text-sm font-bold text-white disabled:opacity-60 mb-2">
           
-          {saving ? <Loader2 size={16} className="animate-spin inline mr-2" /> : null}
+        {saving ? <Loader2 size={16} className="animate-spin inline mr-2" /> : null}
           {saving ? "Salvando..." : "Salvar e Ativar"}
         </button>
 
-        {currentNumber &&
-        <button
-          onClick={handleDisconnect}
-          disabled={saving}
-          className="w-full rounded-2xl bg-destructive/10 py-3.5 text-sm font-bold text-destructive disabled:opacity-60">
-          
-            Desconectar WhatsApp
-          </button>
-        }
+        {currentNumber && (
+          <>
+            <button
+              onClick={async () => {
+                setTesting(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("whatsapp-notify", {
+                    body: { to: currentNumber, template: "teste", params: [] },
+                  });
+                  if (error) throw error;
+                  if (data?.success) {
+                    toast.success("Mensagem de teste enviada! Verifique seu WhatsApp.");
+                  } else {
+                    toast.error(data?.error || "Erro ao enviar teste");
+                  }
+                } catch (e: any) {
+                  console.error(e);
+                  toast.error("Erro ao enviar mensagem de teste");
+                } finally {
+                  setTesting(false);
+                }
+              }}
+              disabled={testing}
+              className="w-full rounded-2xl bg-green-500/10 py-3.5 text-sm font-bold text-green-600 disabled:opacity-60 mb-2">
+              {testing ? <Loader2 size={16} className="animate-spin inline mr-2" /> : <Phone size={14} className="inline mr-2" />}
+              {testing ? "Enviando..." : "Enviar Teste"}
+            </button>
+            <button
+              onClick={handleDisconnect}
+              disabled={saving}
+              className="w-full rounded-2xl bg-destructive/10 py-3.5 text-sm font-bold text-destructive disabled:opacity-60">
+              Desconectar WhatsApp
+            </button>
+          </>
+        )}
 
         <p className="text-[11px] text-muted-foreground text-center mt-4">
           Suas notificações chegam via número oficial ImobiAI no Meta Business Manager.
