@@ -9,8 +9,7 @@ const corsHeaders = {
 
 interface NotifyPayload {
   to: string;
-  message: string;
-  // Legacy template support (optional)
+  message?: string;
   template?: string;
   params?: string[];
 }
@@ -18,22 +17,32 @@ interface NotifyPayload {
 async function sendZAPIMessage(
   to: string,
   message: string
-): Promise<{ success: boolean; message_id?: string; error?: string }> {
+): Promise<{ success: boolean; message_id?: string; error?: string; debug?: unknown }> {
   const instanceId = Deno.env.get("ZAPI_INSTANCE_ID");
   const token = Deno.env.get("ZAPI_TOKEN");
   const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
 
+  console.log("Z-API config check:", {
+    hasInstanceId: !!instanceId,
+    hasToken: !!token,
+    hasClientToken: !!clientToken,
+    instanceIdLength: instanceId?.length,
+    tokenLength: token?.length,
+  });
+
   if (!instanceId || !token) {
-    return { success: false, error: "Z-API credentials not configured" };
+    return { success: false, error: "Z-API credentials not configured (missing ZAPI_INSTANCE_ID or ZAPI_TOKEN)" };
   }
 
-  // Normalize phone: ensure country code, digits only
+  // Normalize phone: digits only, ensure country code 55
   let phone = to.replace(/\D/g, "");
   if (!phone.startsWith("55")) {
     phone = "55" + phone;
   }
 
   const url = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
+
+  console.log("Z-API request:", { url, phone, messageLength: message.length });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -42,26 +51,40 @@ async function sendZAPIMessage(
     headers["Client-Token"] = clientToken;
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      phone,
-      message,
-    }),
-  });
+  const body = JSON.stringify({ phone, message });
+  console.log("Z-API body:", body);
 
-  const data = await res.json();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body,
+    });
 
-  if (!res.ok) {
-    console.error("Z-API error:", data);
-    return { success: false, error: data?.error || data?.message || "Z-API error" };
+    const responseText = await res.text();
+    console.log("Z-API response status:", res.status);
+    console.log("Z-API response body:", responseText);
+
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { raw: responseText };
+    }
+
+    if (!res.ok) {
+      return { success: false, error: `Z-API error (${res.status})`, debug: data };
+    }
+
+    // Z-API returns zapiMessageId or messageId on success
+    const messageId = data?.zapiMessageId || data?.messageId || data?.id;
+    return { success: true, message_id: messageId, debug: data };
+  } catch (fetchError) {
+    console.error("Z-API fetch error:", fetchError);
+    return { success: false, error: `Fetch error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
   }
-
-  return { success: true, message_id: data?.messageId || data?.id };
 }
 
-// Build message from template type + params (backward compat)
 function buildTemplateMessage(template: string, params: string[]): string {
   switch (template) {
     case "lembrete_visita":
@@ -96,6 +119,7 @@ serve(async (req) => {
     const { data: claimsData, error: claimsErr } =
       await supabase.auth.getClaims(token);
     if (claimsErr || !claimsData?.claims) {
+      console.error("Auth error:", claimsErr);
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -103,6 +127,7 @@ serve(async (req) => {
     }
 
     const payload: NotifyPayload = await req.json();
+    console.log("Received payload:", JSON.stringify(payload));
     const { to, message, template, params } = payload;
 
     if (!to) {
@@ -112,10 +137,9 @@ serve(async (req) => {
       );
     }
 
-    // Build final message: direct message or from template
     let finalMessage = message;
-    if (!finalMessage && template && params) {
-      finalMessage = buildTemplateMessage(template, params);
+    if (!finalMessage && template) {
+      finalMessage = buildTemplateMessage(template, params || []);
     }
     if (!finalMessage) {
       return new Response(
@@ -124,7 +148,10 @@ serve(async (req) => {
       );
     }
 
+    console.log("Sending message to:", to, "message:", finalMessage.substring(0, 50) + "...");
+
     const result = await sendZAPIMessage(to, finalMessage);
+    console.log("Send result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 500,
