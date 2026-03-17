@@ -21,6 +21,24 @@ export default function NewLeadDialog() {
 
   const update = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
+  const notifyWhatsApp = async (nome: string, temperatura: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("whatsapp_notification_number")
+        .eq("id", user!.id)
+        .single();
+      const number = (profile as any)?.whatsapp_notification_number;
+      if (!number) return;
+      const tempLabel = Number(temperatura) >= 70 ? "🔥 Quente" : Number(temperatura) >= 40 ? "🌡️ Morno" : "🥶 Frio";
+      await supabase.functions.invoke("whatsapp-notify", {
+        body: { to: number, template: "novo_lead", params: [nome, tempLabel] },
+      });
+    } catch (e) {
+      console.error("WhatsApp notify error:", e);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) return toast.error("Nome é obrigatório");
@@ -47,6 +65,7 @@ export default function NewLeadDialog() {
     queryClient.invalidateQueries({ queryKey: ["leads"] });
     queryClient.invalidateQueries({ queryKey: ["leads-home"] });
     queryClient.invalidateQueries({ queryKey: ["leads-count"] });
+    notifyWhatsApp(form.nome.trim(), form.temperatura);
     setForm({ nome: "", telefone: "", email: "", cpf: "", orcamento: "", bairros: "", quartos_min: "", temperatura: "50", tipo_imovel_preferido: "", perfil: "", urgencia: "", observacoes: "" });
     setOpen(false);
   };
