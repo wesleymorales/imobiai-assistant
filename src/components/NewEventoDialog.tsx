@@ -43,7 +43,7 @@ export default function NewEventoDialog({ trigger }: { trigger?: React.ReactNode
         .select("whatsapp_notification_number, notif_visitas")
         .eq("id", user!.id)
         .single();
-      const number = (profile as any)?.whatsapp_notification_number;
+      const number = profile?.whatsapp_notification_number;
       if (!number || !profile?.notif_visitas) return;
       await supabase.functions.invoke("whatsapp-notify", {
         body: { to: number, template: "lembrete_visita", params: [hora, titulo] },

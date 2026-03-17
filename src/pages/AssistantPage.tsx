@@ -60,7 +60,7 @@ export default function AssistantPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -163,7 +163,7 @@ export default function AssistantPage() {
 
     const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition: SpeechRecognition = new SpeechRecognitionAPI();
+    const recognition: any = new SpeechRecognitionAPI();
     recognition.lang = "pt-BR";
     recognition.continuous = false;
     recognition.interimResults = false;

@@ -329,6 +329,7 @@ export type Database = {
           ticket_medio: number | null
           visitas_por_semana: number | null
           whatsapp_connected: boolean | null
+          whatsapp_notification_number: string | null
         }
         Insert: {
           cidade?: string | null
@@ -351,6 +352,7 @@ export type Database = {
           ticket_medio?: number | null
           visitas_por_semana?: number | null
           whatsapp_connected?: boolean | null
+          whatsapp_notification_number?: string | null
         }
         Update: {
           cidade?: string | null
@@ -373,6 +375,7 @@ export type Database = {
           ticket_medio?: number | null
           visitas_por_semana?: number | null
           whatsapp_connected?: boolean | null
+          whatsapp_notification_number?: string | null
         }
         Relationships: []
       }
