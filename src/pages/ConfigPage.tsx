@@ -49,7 +49,7 @@ function WhatsAppConfigSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl bg-background p-6 safe-bottom animate-in slide-in-from-bottom-4 duration-300">
+      <div className="relative w-full max-w-md rounded-3xl bg-background p-6 safe-bottom animate-in slide-in-from-bottom-4 duration-300">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100">
