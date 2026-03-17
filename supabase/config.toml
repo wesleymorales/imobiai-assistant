@@ -11,3 +11,24 @@ verify_jwt = false
 
 [functions.chat]
 verify_jwt = false
+
+[functions.whatsapp-notify]
+verify_jwt = false
+
+[functions.whatsapp-scheduled]
+verify_jwt = false
+
+# Cron jobs for scheduled WhatsApp notifications
+# Daily briefing at 7:30 AM BRT (10:30 UTC)
+[[cron]]
+name = "whatsapp-daily-briefing"
+schedule = "30 10 * * *"
+function = "whatsapp-scheduled"
+body = "{\"mode\":\"briefing\"}"
+
+# Inactive leads check every day at noon BRT (15:00 UTC)
+[[cron]]
+name = "whatsapp-inactive-leads"
+schedule = "0 15 * * *"
+function = "whatsapp-scheduled"
+body = "{\"mode\":\"inactive\"}"

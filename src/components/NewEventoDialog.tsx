@@ -36,6 +36,23 @@ export default function NewEventoDialog({ trigger }: { trigger?: React.ReactNode
     }
   };
 
+  const notifyWhatsApp = async (titulo: string, hora: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("whatsapp_notification_number, notif_visitas")
+        .eq("id", user!.id)
+        .single();
+      const number = (profile as any)?.whatsapp_notification_number;
+      if (!number || !profile?.notif_visitas) return;
+      await supabase.functions.invoke("whatsapp-notify", {
+        body: { to: number, template: "lembrete_visita", params: [hora, titulo] },
+      });
+    } catch (e) {
+      console.error("WhatsApp notify error:", e);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titulo.trim() || !form.data_inicio || !form.hora_inicio) return toast.error("Preencha título, data e hora");
@@ -57,9 +74,9 @@ export default function NewEventoDialog({ trigger }: { trigger?: React.ReactNode
     toast.success("Evento criado!");
     queryClient.invalidateQueries({ queryKey: ["eventos-home"] });
 
-    // Sync to Google Calendar in background
     if (inserted?.id) {
       syncToGoogleCalendar(inserted.id);
+      notifyWhatsApp(form.titulo.trim(), form.hora_inicio);
     }
 
     setForm({ titulo: "", tipo: "visita", data_inicio: "", hora_inicio: "", hora_fim: "", notas: "" });
